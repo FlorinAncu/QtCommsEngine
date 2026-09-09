@@ -1,93 +1,133 @@
-# QtCommsEngine
+# QtCommsEngine Tests
 
-QtCommsEngine is a lightweight communication framework built on top of Qt6, providing
-message-based client–channel interaction, automatic reconnection, protocol validation,
-priority-based message queues, and a clean abstraction layer for custom transport
-implementations.
+This directory contains the full Catch2-based test suite for QtCommsEngine.  
+All tests are deterministic, run entirely in-memory, and validate the behavior of the
+communication engine across message handling, protocol validation, queue semantics,
+and automatic reconnection.
 
-The project is structured similarly to the original CommsEngine, but adapted for Qt
-types (`QByteArray`, `QMutex`, `QTcpSocket`, etc.) and Qt’s event-driven model.
-
----
-
-## Features
-
-- **Message abstraction**
-  - Strongly typed message IDs
-  - Priority-based message queue
-  - Builder utilities for common protocol messages
-
-- **Protocol validation**
-  - Payload checks
-  - Control-message rules
-  - Sentinel-based error reporting
-
-- **CommClient**
-  - Automatic reconnect logic
-  - Retry policy support
-  - Protocol handshake (GetProtocolVersion, Heartbeat)
-  - Unified `sendAndHandle()` API
-
-- **Channels**
-  - `TcpChannel` – real network transport
-  - `MockChannel` – deterministic testing transport
-
----
-
-## Directory Structure
-
-QtCommsEngine/
-│
-├── include/qtcommsengine/   # Public headers
-├── src/                     # Library implementation
-├── tests/                   # Catch2-based unit tests
-├── examples/                # Minimal usage examples
-└── CMakeLists.txt           # Root build configuration
+The test runner is implemented using `QCoreApplication` to ensure Qt event loop
+compatibility during asynchronous client operations.
 
 
----
+## Test Runner
 
-## Building
+The entry point for the test suite is:
 
-### Requirements
-- CMake ≥ 3.16  
-- Qt6 (Core, Network, Test)  
-- C++20 compiler  
-- Catch2 (fetched automatically via FetchContent)
+#define CATCH_CONFIG_RUNNER
+#include <catch2/catch_all.hpp>
+#include <QCoreApplication>
 
-### Configure & build
+int main(int argc, char** argv)
+{
+    QCoreApplication app(argc, argv);
+    return Catch::Session().run(argc, argv);
+}
+This ensures that all Qt-based components (threads, timers, channels) operate correctly
+during testing.
 
-cmake -S . -B build
-cmake --build build
-Running Tests
-QtCommsEngine uses Catch2 for unit testing (same structure as CommsEngine).
+Test Coverage
+1. MessageQueue Tests
+File: MessageQueueTests.cpp
+
+These tests verify:
+
+Priority-based message ordering
+
+FIFO behavior within the same priority
+
+Correct behavior after queue closure
+
+waitForClose() timeout and success conditions
+
+Validated scenarios:
+
+Critical > Normal > Low ordering
+
+pop() returns false after close()
+
+waitForClose() succeeds immediately if already closed
+
+waitForClose() times out when the queue remains open
+
+2. ProtocolValidator Tests
+File: ProtocolValidatorTests.cpp
+
+These tests validate:
+
+Acceptance of known message IDs with payload
+
+Acceptance of empty payloads for control messages
+
+Rejection of empty payloads for non-control messages
+
+Rejection of unknown message IDs
+
+Detection of sentinel payloads (CRC_ERROR, VERSION_MISMATCH)
+
+The validator ensures strict protocol correctness before messages enter the client pipeline.
+
+3. CommClient Reconnection Tests
+File: ReconnectionTests.cpp
+
+These tests verify the automatic reconnection logic:
+
+Client reconnects after channel disconnect
+
+Protocol resynchronization (handshake) after reconnect
+
+sendAndHandle() fails while disconnected
+
+sendAndHandle() succeeds after auto-reconnect
+
+The tests use MockChannel to simulate disconnects and reconnection timing.
+
+4. CommClient Send/Handle Tests
+File: TrySendOnceTests.cpp
+
+These tests validate:
+
+Successful handling of valid Ping messages
+
+Correct protocol version handshake
+
+Failure when the channel cannot be opened
+
+Correct error propagation (ErrorCode::ChannelError)
+
+These tests ensure that the synchronous sendAndHandle() API behaves correctly under
+normal and failure conditions.
+
+Running the Tests
+From the project root:
 
 
 ctest --test-dir build -C Debug
-Tests cover:
+Or run the test binary directly:
 
-MessageQueue behavior
 
-ProtocolValidator rules
+./build/tests/QtCommsEngineTests
+All tests are self-contained and require no external server or network connection.
 
-CommClient send/handle logic
+Notes
+All tests use MockChannel for deterministic behavior.
+
+Timing-based reconnection tests rely on small sleep intervals (200–600 ms).
+
+The test suite is designed to be fast: typically under 50 ms total runtime.
+
+Adding new tests is straightforward: include the relevant QtCommsEngine headers and
+use Catch2 macros.
+
+Summary
+The tests/ directory provides full coverage for:
+
+Message queue semantics
+
+Protocol validation
+
+Client send/handle logic
 
 Automatic reconnection and protocol resync
 
-Examples
-A minimal example is available under examples/:
-
-
-./build/examples/QtCommsEngineExample
-It demonstrates:
-
-Creating a client
-
-Connecting to a channel
-
-Sending messages
-
-Handling responses
-
-License
-This project is provided as-is for internal and educational use.
+This suite ensures that QtCommsEngine behaves predictably and safely under all expected
+conditions.

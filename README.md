@@ -1,34 +1,103 @@
 # QtCommsEngine
 
-QtCommsEngine is a fully Qt-based communication engine designed for structured binary messaging. It provides a complete transport, serialization, validation, and asynchronous client pipeline built entirely on Qt. The library uses Qt types exclusively (QByteArray, QString, QList, QMutex, QWaitCondition, QThread, QJsonDocument) and avoids STL and non-Qt primitive types. All code follows the Allman brace style and uses the namespace `qtcommsengine`.
+QtCommsEngine is a fully Qt-based communication engine designed for structured binary messaging.  
+It provides a complete transport layer, serialization, protocol validation, priority-based message
+queues, and an asynchronous client with automatic reconnection. The library uses Qt types
+exclusively (`QByteArray`, `QString`, `QList`, `QMutex`, `QWaitCondition`, `QThread`,
+`QJsonDocument`) and avoids STL and non-Qt primitive types. All code follows the Allman brace
+style and uses the namespace `qtcommsengine`.
 
-QtCommsEngine is organized into several layers. The transport layer includes CommChannel (an abstract communication interface), TcpChannel (a TCP/IP implementation using QTcpSocket), and MockChannel (an in-memory test channel). The message layer includes Message (representing id, payload, and priority), MessagePriority (Low, Normal, High, Critical), MessageBuilder (constructs well-known protocol messages), and MessageParser (extracts id and payload from raw frames). The serialization layer includes BinaryProtocolSerializer (binary framing with version, id, payload size, payload, and CRC32), Crc32 (checksum validation), and ProtocolVersion (protocol version constant). The protocol layer includes Protocol (message ID definitions), ProtocolValidator (validates messages), and ProtocolCompatibility (checks version compatibility). The client layer includes CommManager (synchronous communication manager), CommClient (asynchronous client with background sender thread), MessageQueue (thread-safe priority queue), RetryPolicy (retry and reconnect strategy), and ResponseHandler (interprets server responses). Utilities include Logger (minimal stdout logger), ErrorCode (unified error codes), ErrorHandler (logs error codes), ConfigLoader (loads JSON configuration), and ConnectionConfig (configuration struct).
+QtCommsEngine is lightweight, deterministic, and designed for clean integration into Qt
+applications that require message-based communication over custom or standard transports.
 
-The project structure is simple: an `include/qtcommsengine` directory containing all headers, a `src` directory containing all implementation files, and a top-level CMakeLists.txt. QtCommsEngine builds as a static library.
 
-To build the library, you need CMake 3.16 or newer, Qt 6 (or Qt 5 with minor adjustments), and C++20. Build commands are:
+## Features
+
+### Message Abstraction
+- Strongly typed message IDs  
+- Priority-based message queue (Low, Normal, High, Critical)  
+- `MessageBuilder` utilities for common protocol messages  
+- `MessageParser` for extracting ID and payload from binary frames  
+
+### Protocol Validation
+- Payload validation rules  
+- Control-message rules  
+- Sentinel-based error reporting (`CRC_ERROR`, `VERSION_MISMATCH`)  
+- Protocol version compatibility checks  
+
+### CommClient
+- Background sender thread  
+- Automatic reconnection logic  
+- Retry policy support  
+- Protocol handshake (GetProtocolVersion, Heartbeat)  
+- Unified `sendAndHandle()` API  
+
+### Channels
+- `CommChannel` – abstract communication interface  
+- `TcpChannel` – TCP/IP transport using `QTcpSocket`  
+- `MockChannel` – deterministic in-memory transport for testing  
+
+### Serialization
+Binary framing format:
+
+[version:4 bytes][id:4 bytes][payloadSize:4 bytes][payload][crc32:4 bytes]
+
+- `BinaryProtocolSerializer` for encoding/decoding frames  
+- `Crc32` checksum validation  
+- `ProtocolVersion` constant  
+
+### Utilities
+- `Logger` – minimal stdout logger  
+- `ErrorCode` – unified error codes  
+- `ErrorHandler` – error interpretation  
+- `ConfigLoader` – JSON configuration loader  
+- `ConnectionConfig` – connection configuration struct  
+
+---
+
+## Directory Structure
+
+QtCommsEngine/
+│
+├── include/qtcommsengine/   # Public headers
+├── src/                     # Library implementation
+├── tests/                   # Catch2-based unit tests
+├── examples/                # Minimal usage examples
+└── CMakeLists.txt           # Root build configuration
+
+
+## Requirements
+
+- CMake ≥ 3.16  
+- Qt6 (Core, Network, Test)  
+- C++20 compiler  
+- Catch2 (fetched automatically via FetchContent)  
+
+---
+
+## Building
 
 cmake -S . -B build
 cmake --build build
+This produces the static library:
 
-This produces the static library `libQtCommsEngine.a`.
+libQtCommsEngine.a
 
-To integrate QtCommsEngine into your project, add the directory and link the library in your CMakeLists.txt:
+Running Tests
+QtCommsEngine uses Catch2 for unit testing.
 
-add_subdirectory(QtCommsEngine)
-target_link_libraries(YourApp
-    QtCommsEngine
-    Qt6::Core
-    Qt6::Network
-)
+ctest --test-dir build -C Debug
+Tests cover:
 
-Include the necessary headers in your C++ code:
+MessageQueue behavior
 
-#include <qtcommsengine/CommClient.h>
-#include <qtcommsengine/TcpChannel.h>
-#include <qtcommsengine/MessageBuilder.h>
+ProtocolValidator rules
 
-A minimal usage example:
+CommClient send/handle logic
+
+Automatic reconnection and protocol resynchronization
+
+Usage Example
 
 #include <qtcommsengine/TcpChannel.h>
 #include <qtcommsengine/CommClient.h>
@@ -38,17 +107,54 @@ int main()
 {
     qtcommsengine::TcpChannel channel("127.0.0.1", 9000);
     qtcommsengine::CommClient client(&channel);
-    qtcommsengine::Message ping = qtcommsengine::MessageBuilder::makePing("Hello");
+
+    qtcommsengine::Message ping =
+        qtcommsengine::MessageBuilder::makePing("Hello");
+
     client.enqueue(ping);
     return 0;
 }
+Integration in Your Project
+In your CMakeLists.txt:
 
-QtCommsEngine uses a deterministic binary frame format:
+cmake
+add_subdirectory(QtCommsEngine)
 
-[version:4 bytes][id:4 bytes][payloadSize:4 bytes][payload:payloadSize bytes][crc32:4 bytes]
+target_link_libraries(YourApp
+    QtCommsEngine
+    Qt6::Core
+    Qt6::Network
+)
 
-CRC32 is computed over all fields except the CRC itself.
+Include the necessary headers:
 
-Coding style rules are strict: Qt-only, Allman braces, no STL, no non-Qt primitive types, no std::vector, no std::string, no uint32_t. The library uses QByteArray, QString, QList, QMutex, QWaitCondition, and the namespace `qtcommsengine`.
+#include <qtcommsengine/CommClient.h>
+#include <qtcommsengine/TcpChannel.h>
+#include <qtcommsengine/MessageBuilder.h>
 
-Choose your preferred license (MIT, Apache-2.0, BSD, Proprietary).
+
+License
+
+MIT License
+
+Copyright (c) 2026 Florin Ancu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+This project is provided as-is for internal and educational use.
