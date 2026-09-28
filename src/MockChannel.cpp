@@ -1,4 +1,4 @@
-#include "qtcommsengine/MockChannel.h"
+#include "qtcommsengine/MockChannel.hpp"
 
 namespace qtcommsengine
 {

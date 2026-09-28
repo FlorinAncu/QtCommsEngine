@@ -15,29 +15,30 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Source files
 set(QTCOMMSENGINE_HEADERS
-    include/qtcommsengine/BinaryProtocolSerializer.h
-    include/qtcommsengine/CommChannel.h
-    include/qtcommsengine/CommClient.h
-    include/qtcommsengine/CommManager.h
-    include/qtcommsengine/ConfigLoader.h
-    include/qtcommsengine/ConnectionConfig.h
-    include/qtcommsengine/Crc32.h
-    include/qtcommsengine/ErrorCode.h
-    include/qtcommsengine/ErrorHandler.h
-    include/qtcommsengine/Logger.h
-    include/qtcommsengine/Message.h
-    include/qtcommsengine/MessageBuilder.h
-    include/qtcommsengine/MessageParser.h
-    include/qtcommsengine/MessagePriority.h
-    include/qtcommsengine/MessageQueue.h
-    include/qtcommsengine/MockChannel.h
-    include/qtcommsengine/Protocol.h
-    include/qtcommsengine/ProtocolCompatibility.h
-    include/qtcommsengine/ProtocolValidator.h
-    include/qtcommsengine/ProtocolVersion.h
-    include/qtcommsengine/ResponseHandler.h
-    include/qtcommsengine/RetryPolicy.h
-    include/qtcommsengine/TcpChannel.h
+    include/qtcommsengine/BinaryProtocolSerializer.hpp
+    include/qtcommsengine/CommChannel.hpp
+    include/qtcommsengine/CommClient.hpp
+    include/qtcommsengine/CommManager.hpp
+    include/qtcommsengine/ConfigLoader.hpp
+    include/qtcommsengine/ConnectionConfig.hpp
+    include/qtcommsengine/Crc32.hpp
+    include/qtcommsengine/ErrorCode.hpp
+    include/qtcommsengine/ErrorHandler.hpp
+    include/qtcommsengine/Logger.hpp
+    include/qtcommsengine/Message.hpp
+    include/qtcommsengine/MessageBuilder.hpp
+    include/qtcommsengine/MessageParser.hpp
+    include/qtcommsengine/MessagePriority.hpp
+    include/qtcommsengine/MessageQueue.hpp
+    include/qtcommsengine/MockChannel.hpp
+    include/qtcommsengine/Protocol.hpp
+    include/qtcommsengine/ProtocolCompatibility.hpp
+    include/qtcommsengine/ProtocolValidator.hpp
+    include/qtcommsengine/ProtocolVersion.hpp
+    include/qtcommsengine/ResponseHandler.hpp
+    include/qtcommsengine/RetryPolicy.hpp
+    include/qtcommsengine/TcpChannel.hpp
+    include/qtcommsengine/TcpServer.hpp
 )
 
 set(QTCOMMSENGINE_SOURCES
@@ -58,6 +59,7 @@ set(QTCOMMSENGINE_SOURCES
     src/ProtocolValidator.cpp
     src/ResponseHandler.cpp
     src/TcpChannel.cpp
+    src/TcpServer.cpp
 )
 
 add_library(QtCommsEngine STATIC

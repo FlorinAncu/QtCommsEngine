@@ -1,4 +1,4 @@
-#include "qtcommsengine/CommClient.h"
+#include "qtcommsengine/CommClient.hpp"
 
 namespace qtcommsengine
 {
@@ -10,10 +10,9 @@ namespace qtcommsengine
         : CommManager(channel, parent)
         , m_retryPolicy(retryPolicy)
         , m_timeoutMs(timeoutMs)
-        , m_queue()  // no parent — moveToThread fails on objects with a parent
+        , m_queue()
         , m_running(true)
     {
-        // Move everything to the sender thread for thread-safe access
         m_queue.moveToThread(&m_senderThread);
         if (transport())
         {
@@ -63,7 +62,14 @@ namespace qtcommsengine
             return ErrorCode::Timeout;
         }
 
-        return m_responseHandler.handleResponse(response);
+        ErrorCode code = m_responseHandler.handleResponse(response);
+
+        if (code == ErrorCode::Ok)
+        {
+            emit messageReceived(response);
+        }
+
+        return code;
     }
 
     void CommClient::runSender()
@@ -71,14 +77,13 @@ namespace qtcommsengine
         while (m_running)
         {
             Message msg;
-            if (!m_queue.pop(msg, 100))  // 100ms timeout to allow periodic connection checks
+            if (!m_queue.pop(msg, 100))
             {
                 if (!m_running)
                 {
                     break;
                 }
 
-                // Channel is on this thread now — safe to call directly
                 if (!isConnected())
                 {
                     reconnectAndResynchronize();

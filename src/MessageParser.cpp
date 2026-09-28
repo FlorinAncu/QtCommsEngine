@@ -1,4 +1,4 @@
-#include "qtcommsengine/MessageParser.h"
+#include "qtcommsengine/MessageParser.hpp"
 
 namespace qtcommsengine
 {

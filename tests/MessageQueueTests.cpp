@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "qtcommsengine/Message.h"
-#include "qtcommsengine/MessagePriority.h"
-#include "qtcommsengine/MessageQueue.h"
+#include "qtcommsengine/Message.hpp"
+#include "qtcommsengine/MessagePriority.hpp"
+#include "qtcommsengine/MessageQueue.hpp"
 
 using namespace qtcommsengine;
 

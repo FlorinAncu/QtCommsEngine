@@ -1,4 +1,4 @@
-#include "qtcommsengine/MessageQueue.h"
+#include "qtcommsengine/MessageQueue.hpp"
 
 #include <algorithm>
 

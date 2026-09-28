@@ -99,9 +99,9 @@ Automatic reconnection and protocol resynchronization
 
 Usage Example
 
-#include <qtcommsengine/TcpChannel.h>
-#include <qtcommsengine/CommClient.h>
-#include <qtcommsengine/MessageBuilder.h>
+#include <qtcommsengine/TcpChannel.hpp>
+#include <qtcommsengine/CommClient.hpp>
+#include <qtcommsengine/MessageBuilder.hpp>
 
 int main()
 {
@@ -128,9 +128,9 @@ target_link_libraries(YourApp
 
 Include the necessary headers:
 
-#include <qtcommsengine/CommClient.h>
-#include <qtcommsengine/TcpChannel.h>
-#include <qtcommsengine/MessageBuilder.h>
+#include <qtcommsengine/CommClient.hpp>
+#include <qtcommsengine/TcpChannel.hpp>
+#include <qtcommsengine/MessageBuilder.hpp>
 
 
 License

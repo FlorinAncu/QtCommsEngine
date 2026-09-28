@@ -1,7 +1,7 @@
-#include "qtcommsengine/CommClient.h"
-#include "qtcommsengine/ErrorCode.h"
-#include "qtcommsengine/MessageBuilder.h"
-#include "qtcommsengine/MockChannel.h"
+#include "qtcommsengine/CommClient.hpp"
+#include "qtcommsengine/ErrorCode.hpp"
+#include "qtcommsengine/MessageBuilder.hpp"
+#include "qtcommsengine/MockChannel.hpp"
 
 #include <QCoreApplication>
 #include <QDebug>

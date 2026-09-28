@@ -1,4 +1,4 @@
-#include "qtcommsengine/MessageBuilder.h"
+#include "qtcommsengine/MessageBuilder.hpp"
 
 namespace qtcommsengine
 {

@@ -1,5 +1,5 @@
-#include "qtcommsengine/ProtocolValidator.h"
-#include "qtcommsengine/Protocol.h"
+#include "qtcommsengine/ProtocolValidator.hpp"
+#include "qtcommsengine/Protocol.hpp"
 
 namespace qtcommsengine
 {

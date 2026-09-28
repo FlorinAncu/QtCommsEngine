@@ -1,4 +1,4 @@
-#include "qtcommsengine/ProtocolCompatibility.h"
+#include "qtcommsengine/ProtocolCompatibility.hpp"
 
 namespace qtcommsengine
 {

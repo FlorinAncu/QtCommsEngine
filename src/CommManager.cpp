@@ -1,5 +1,5 @@
-#include "qtcommsengine/CommManager.h"
-#include "qtcommsengine/BinaryProtocolSerializer.h"
+#include "qtcommsengine/CommManager.hpp"
+#include "qtcommsengine/BinaryProtocolSerializer.hpp"
 
 namespace qtcommsengine
 {

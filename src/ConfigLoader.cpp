@@ -1,4 +1,4 @@
-#include "ConfigLoader.h"
+#include "ConfigLoader.hpp"
 
 #include <QCoreApplication>
 #include <QFile>

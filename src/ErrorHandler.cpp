@@ -1,5 +1,5 @@
-#include "qtcommsengine/ErrorHandler.h"
-#include "qtcommsengine/Logger.h"
+#include "qtcommsengine/ErrorHandler.hpp"
+#include "qtcommsengine/Logger.hpp"
 
 namespace qtcommsengine
 {

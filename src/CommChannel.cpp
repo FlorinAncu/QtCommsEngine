@@ -1,4 +1,4 @@
-#include "qtcommsengine/CommChannel.h"
+#include "qtcommsengine/CommChannel.hpp"
 
 namespace qtcommsengine
 {

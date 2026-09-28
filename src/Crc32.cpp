@@ -1,4 +1,4 @@
-#include "qtcommsengine/Crc32.h"
+#include "qtcommsengine/Crc32.hpp"
 
 namespace qtcommsengine
 {

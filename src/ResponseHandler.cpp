@@ -1,5 +1,5 @@
-#include "qtcommsengine/ResponseHandler.h"
-#include "qtcommsengine/Protocol.h"
+#include "qtcommsengine/ResponseHandler.hpp"
+#include "qtcommsengine/Protocol.hpp"
 
 namespace qtcommsengine
 {

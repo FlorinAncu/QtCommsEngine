@@ -1,9 +1,9 @@
-#include "qtcommsengine/BinaryProtocolSerializer.h"
+#include "qtcommsengine/BinaryProtocolSerializer.hpp"
 
 #include <QtGlobal>
 
-#include "qtcommsengine/ProtocolVersion.h"
-#include "qtcommsengine/Crc32.h"
+#include "qtcommsengine/ProtocolVersion.hpp"
+#include "qtcommsengine/Crc32.hpp"
 
 namespace qtcommsengine
 {

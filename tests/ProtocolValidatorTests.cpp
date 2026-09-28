@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "qtcommsengine/ErrorCode.h"
-#include "qtcommsengine/Message.h"
-#include "qtcommsengine/MessageBuilder.h"
-#include "qtcommsengine/ProtocolValidator.h"
+#include "qtcommsengine/ErrorCode.hpp"
+#include "qtcommsengine/Message.hpp"
+#include "qtcommsengine/MessageBuilder.hpp"
+#include "qtcommsengine/ProtocolValidator.hpp"
 
 using namespace qtcommsengine;
 

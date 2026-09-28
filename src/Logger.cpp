@@ -1,4 +1,4 @@
-#include "qtcommsengine/Logger.h"
+#include "qtcommsengine/Logger.hpp"
 
 #include <QTextStream>
 
