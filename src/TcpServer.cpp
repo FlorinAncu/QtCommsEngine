@@ -83,16 +83,22 @@ namespace qtcommsengine
 
     void TcpServer::close()
     {
-        if (m_client)
+        QTcpSocket *client = m_client;
+        m_client = nullptr;
+        if (client)
         {
-            m_client->disconnectFromHost();
-            m_client->deleteLater();
-            m_client = nullptr;
+            QObject::disconnect(client, nullptr, this, nullptr);
+            client->abort();
+            client->deleteLater();
         }
 
         m_receiveBuffer.clear();
         m_server->close();
         m_ipv4Server->close();
+        if (client)
+        {
+            emit clientDisconnected();
+        }
     }
 
     bool TcpServer::isListening() const
