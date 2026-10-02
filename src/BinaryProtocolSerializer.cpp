@@ -16,7 +16,7 @@ namespace qtcommsengine
         buffer.append(static_cast<char>((value >> 24) & 0xFF));
     }
 
-    static quint32 readUInt32(const QByteArray &buffer, int offset)
+    static quint32 readUInt32(const QByteArray &buffer, qsizetype offset)
     {
         if (offset + 4 > buffer.size())
         {
@@ -33,7 +33,7 @@ namespace qtcommsengine
     {
         QByteArray frame;
 
-        // Layout: [version (4)] [id (4)] [payloadSize (4)] [payload] [crc32 (4)]
+        // Layout: [version (4)] [id (4)] [correlationId (4)] [payloadSize (4)] [payload] [crc32 (4)]
 
         quint32 version = PROTOCOL_VERSION;
         qint32 id = msg.getId();
@@ -41,6 +41,7 @@ namespace qtcommsengine
 
         appendUInt32(frame, version);
         appendUInt32(frame, static_cast<quint32>(id));
+        appendUInt32(frame, msg.getCorrelationId());
         appendUInt32(frame, payloadSize);
 
         frame.append(msg.getPayload());
@@ -53,7 +54,7 @@ namespace qtcommsengine
 
     Message BinaryProtocolSerializer::deserialize(const QByteArray &data)
     {
-        if (data.size() < 4 + 4 + 4 + 4)
+        if (data.size() < 4 + 4 + 4 + 4 + 4)
         {
             return Message();
         }
@@ -66,6 +67,9 @@ namespace qtcommsengine
         qint32 id = static_cast<qint32>(readUInt32(data, offset));
         offset += 4;
 
+        quint32 correlationId = readUInt32(data, offset);
+        offset += 4;
+
         quint32 payloadSize = readUInt32(data, offset);
         offset += 4;
 
@@ -74,23 +78,26 @@ namespace qtcommsengine
             return Message();
         }
 
-        if (data.size() < offset + static_cast<int>(payloadSize) + 4)
+        if (static_cast<quint64>(payloadSize) != static_cast<quint64>(data.size() - offset - 4))
         {
             return Message();
         }
 
-        QByteArray frameWithoutCrc = data.left(offset + static_cast<int>(payloadSize));
+        const qsizetype payloadLength = static_cast<qsizetype>(payloadSize);
+        QByteArray frameWithoutCrc = data.left(offset + payloadLength);
         quint32 expectedCrc = Crc32::compute(frameWithoutCrc);
-        quint32 actualCrc = readUInt32(data, offset + static_cast<int>(payloadSize));
+        quint32 actualCrc = readUInt32(data, offset + payloadLength);
 
         if (expectedCrc != actualCrc)
         {
             return Message();
         }
 
-        QByteArray payload = data.mid(offset, static_cast<int>(payloadSize));
+        QByteArray payload = data.mid(offset, payloadLength);
 
-        return Message(id, payload);
+        Message message(id, payload);
+        message.setCorrelationId(correlationId);
+        return message;
     }
 
 }

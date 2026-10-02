@@ -1,11 +1,10 @@
 # QtCommsEngine
 
-QtCommsEngine is a fully Qt-based communication engine designed for structured binary messaging.  
-It provides a complete transport layer, serialization, protocol validation, priority-based message
-queues, and an asynchronous client with automatic reconnection. The library uses Qt types
-exclusively (`QByteArray`, `QString`, `QList`, `QMutex`, `QWaitCondition`, `QThread`,
-`QJsonDocument`) and avoids STL and non-Qt primitive types. All code follows the Allman brace
-style and uses the namespace `qtcommsengine`.
+QtCommsEngine is a Qt-based communication engine for structured binary messaging.
+It provides TCP and mock transports, serialization, optional protocol validation,
+priority-based message queues, and a client with automatic reconnection. It uses
+Qt types for messages and transport, with a small amount of standard C++ for
+thread synchronization. The library uses the namespace `qtcommsengine`.
 
 QtCommsEngine is lightweight, deterministic, and designed for clean integration into Qt
 applications that require message-based communication over custom or standard transports.
@@ -17,34 +16,52 @@ applications that require message-based communication over custom or standard tr
 - Strongly typed message IDs  
 - Priority-based message queue (Low, Normal, High, Critical)  
 - `MessageBuilder` utilities for common protocol messages  
-- `MessageParser` for extracting ID and payload from binary frames  
+- `MessageParser` for decoding versioned, CRC-protected binary frames  
 
 ### Protocol Validation
-- Payload validation rules  
-- Control-message rules  
-- Sentinel-based error reporting (`CRC_ERROR`, `VERSION_MISMATCH`)  
-- Protocol version compatibility checks  
+- `ProtocolValidator::validate()` checks message IDs and payload rules when called
+- Sentinel payloads (`CRC_ERROR`, `VERSION_MISMATCH`) are recognized by the validator
+- The binary decoder independently rejects incorrect versions and CRCs
 
 ### CommClient
-- Background sender thread  
-- Automatic reconnection logic  
-- Retry policy support  
-- Protocol handshake (GetProtocolVersion, Heartbeat)  
-- Unified `sendAndHandle()` API  
+- Worker thread for socket operations, including synchronous `connect()`,
+    `disconnect()`, and `sendAndHandle()` calls
+- `enqueue()` for asynchronous requests and `messageReceived` for incoming messages
+- `enqueueResponse()` for replies to server-initiated requests
+- Automatic reconnection using `RetryPolicy`; GetProtocolVersion and Heartbeat
+    are available as requests, not an automatic handshake
 
 ### Channels
 - `CommChannel` – abstract communication interface  
 - `TcpChannel` – TCP/IP transport using `QTcpSocket`  
+- `TcpServer` – single-client TCP server with framed message reception  
 - `MockChannel` – deterministic in-memory transport for testing  
 
-### Serialization
-Binary framing format:
+`TcpChannel` accepts IPv4 and IPv6 addresses (as well as hostnames). `TcpServer`
+accepts numeric IPv4 or IPv6 bind addresses. Its wildcard values (`""`, `"*"`,
+and `"0.0.0.0"`) listen on IPv6-any and IPv4-any on the same port. If the
+operating system's IPv6 listener already accepts IPv4 clients, the separate
+IPv4 listener may not be needed; otherwise it provides IPv4 access directly.
 
-[version:4 bytes][id:4 bytes][payloadSize:4 bytes][payload][crc32:4 bytes]
+### Serialization
+Protocol version 2 binary framing format (32-bit fields are little-endian):
+
+```text
+[version:4][id:4][correlationId:4][payloadSize:4][payload][crc32:4]
+```
+
+Version 2 is not wire-compatible with version 1: upgrade both peers together.
+Each request receives a nonzero correlation ID; replies must copy that ID.
+`CommClient` generates IDs in the lower half of the range, while the example
+IndustrialDataEcosystem server generates IDs in the upper half. A response
+completes a client request only when both its message type and correlation ID
+match (an `Error` with the same correlation ID also completes it). No pending
+request is matched to a response with a different ID; queued requests can be
+sent after reconnection.
 
 - `BinaryProtocolSerializer` for encoding/decoding frames  
 - `Crc32` checksum validation  
-- `ProtocolVersion` constant  
+- `PROTOCOL_VERSION` constant  
 
 ### Utilities
 - `Logger` – minimal stdout logger  
@@ -57,13 +74,14 @@ Binary framing format:
 
 ## Directory Structure
 
+```text
 QtCommsEngine/
-│
 ├── include/qtcommsengine/   # Public headers
 ├── src/                     # Library implementation
 ├── tests/                   # Catch2-based unit tests
 ├── examples/                # Minimal usage examples
 └── CMakeLists.txt           # Root build configuration
+```
 
 
 ## Requirements
@@ -71,66 +89,62 @@ QtCommsEngine/
 - CMake ≥ 3.16  
 - Qt6 (Core, Network, Test)  
 - C++20 compiler  
-- Catch2 (fetched automatically via FetchContent)  
+- Catch2 (fetched via FetchContent when tests are enabled)  
 
 ---
 
 ## Building
 
+```sh
 cmake -S . -B build
-cmake --build build
-This produces the static library:
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
 
-libQtCommsEngine.a
+The build produces a static library (`QtCommsEngine.lib` on Windows, or
+`libQtCommsEngine.a` on platforms using the GNU archive format). Catch2 tests
+cover queues, validation, framing, correlation IDs, synchronous and asynchronous
+message exchange, and reconnection.
 
-Running Tests
-QtCommsEngine uses Catch2 for unit testing.
+## Usage Example
 
-ctest --test-dir build -C Debug
-Tests cover:
+A version 2 server must already be listening on port 9000. This synchronous
+example waits for the reply before the client goes out of scope:
 
-MessageQueue behavior
-
-ProtocolValidator rules
-
-CommClient send/handle logic
-
-Automatic reconnection and protocol resynchronization
-
-Usage Example
-
-#include <qtcommsengine/TcpChannel.hpp>
+```cpp
 #include <qtcommsengine/CommClient.hpp>
 #include <qtcommsengine/MessageBuilder.hpp>
+#include <qtcommsengine/TcpChannel.hpp>
 
 int main()
 {
     qtcommsengine::TcpChannel channel("127.0.0.1", 9000);
     qtcommsengine::CommClient client(&channel);
 
-    qtcommsengine::Message ping =
-        qtcommsengine::MessageBuilder::makePing("Hello");
+    if (!client.connect())
+    {
+        return 1;
+    }
 
-    client.enqueue(ping);
-    return 0;
+    return client.sendAndHandle(qtcommsengine::MessageBuilder::makePing("Hello"))
+        == qtcommsengine::ErrorCode::Ok ? 0 : 1;
 }
-Integration in Your Project
-In your CMakeLists.txt:
+```
 
-cmake
+For asynchronous use, connect to `CommClient::messageReceived`, then call
+`enqueue()`. Keep the client alive while the request is pending; destroying or
+stopping it does not drain queued messages.
+
+## Integration in Your Project
+
+```cmake
+set(QTCOMMSENGINE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(QTCOMMSENGINE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(QtCommsEngine)
+target_link_libraries(YourApp PRIVATE QtCommsEngine Qt6::Core Qt6::Network)
+```
 
-target_link_libraries(YourApp
-    QtCommsEngine
-    Qt6::Core
-    Qt6::Network
-)
-
-Include the necessary headers:
-
-#include <qtcommsengine/CommClient.hpp>
-#include <qtcommsengine/TcpChannel.hpp>
-#include <qtcommsengine/MessageBuilder.hpp>
+Include public headers from `<qtcommsengine/...>`.
 
 
 License

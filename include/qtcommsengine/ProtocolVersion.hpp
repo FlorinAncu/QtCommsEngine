@@ -5,6 +5,6 @@
 namespace qtcommsengine
 {
 
-    constexpr quint32 PROTOCOL_VERSION = 1;
+    constexpr quint32 PROTOCOL_VERSION = 2;
 
 }

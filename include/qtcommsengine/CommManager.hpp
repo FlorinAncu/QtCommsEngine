@@ -16,14 +16,14 @@ namespace qtcommsengine
     public:
         explicit CommManager(CommChannel *channel, QObject *parent = nullptr);
 
-        bool connect();
-        void disconnect();
+        virtual bool connect();
+        virtual void disconnect();
 
         void setTimeout(int milliseconds);
         bool isConnected() const;
 
         bool sendMessage(const Message &msg);
-        bool receiveMessage(Message &msg);
+        bool receiveMessage(Message &msg, int timeoutMs = -1);
 
     protected:
         CommChannel *transport() const;
@@ -31,6 +31,7 @@ namespace qtcommsengine
     private:
         CommChannel *m_channel;
         int m_timeoutMs;
+        QByteArray m_receiveBuffer;
     };
 
 }

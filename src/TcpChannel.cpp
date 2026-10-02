@@ -18,6 +18,16 @@ namespace qtcommsengine
         close();
     }
 
+    void TcpChannel::setHost(const QString& host)
+    {
+        m_host = host;
+    }
+
+    void TcpChannel::setPort(quint16 port)
+    {
+        m_port = port;
+    }
+
     bool TcpChannel::open()
     {
         m_socket->connectToHost(m_host, m_port);
@@ -70,7 +80,7 @@ namespace qtcommsengine
             return QByteArray();
         }
 
-        if (!m_socket->waitForReadyRead(m_timeoutMs))
+        if (m_socket->bytesAvailable() == 0 && !m_socket->waitForReadyRead(m_timeoutMs))
         {
             return QByteArray();
         }

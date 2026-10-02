@@ -1,4 +1,7 @@
 #include "qtcommsengine/MockChannel.hpp"
+#include "qtcommsengine/BinaryProtocolSerializer.hpp"
+#include "qtcommsengine/Protocol.hpp"
+#include "qtcommsengine/ProtocolVersion.hpp"
 
 namespace qtcommsengine
 {
@@ -33,6 +36,12 @@ namespace qtcommsengine
         Q_UNUSED(m_timeoutMs);
     }
 
+    void MockChannel::setOpenShouldFail(bool shouldFail)
+    {
+        QMutexLocker locker(&m_mutex);
+        m_openShouldFail = shouldFail;
+    }
+
     bool MockChannel::send(const QByteArray &data)
     {
         QMutexLocker locker(&m_mutex);
@@ -41,7 +50,27 @@ namespace qtcommsengine
             return false;
         }
 
-        m_responseData = data;
+        const Message request = BinaryProtocolSerializer::deserialize(data);
+        QByteArray payload = request.getPayload();
+        MessageId responseId = MessageId::Error;
+        switch (static_cast<MessageId>(request.getId()))
+        {
+        case MessageId::Ping: responseId = MessageId::Pong; break;
+        case MessageId::GetStatus: responseId = MessageId::Status; break;
+        case MessageId::GetProtocolVersion:
+            responseId = MessageId::ProtocolVersion;
+            payload = QByteArray::number(PROTOCOL_VERSION);
+            break;
+        case MessageId::Heartbeat:
+            responseId = MessageId::HeartbeatAck;
+            payload.clear();
+            break;
+        case MessageId::SetParameter: responseId = MessageId::ParameterAck; break;
+        default: payload = QByteArray("Unsupported request"); break;
+        }
+        Message response(static_cast<qint32>(responseId), payload);
+        response.setCorrelationId(request.getCorrelationId());
+        m_responseData = BinaryProtocolSerializer::serialize(response);
         return true;
     }
 
@@ -53,12 +82,9 @@ namespace qtcommsengine
             return QByteArray();
         }
 
-        if (m_responseData.size() > maxSize)
-        {
-            return m_responseData.left(maxSize);
-        }
-
-        return m_responseData;
+        const QByteArray chunk = m_responseData.left(maxSize);
+        m_responseData.remove(0, chunk.size());
+        return chunk;
     }
 
     bool MockChannel::isConnected() const

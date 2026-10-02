@@ -17,6 +17,8 @@ namespace qtcommsengine
 
         qint32 getId() const;
         const QByteArray &getPayload() const;
+        quint32 getCorrelationId() const;
+        void setCorrelationId(quint32 correlationId);
 
         void setPriority(MessagePriority priority);
         MessagePriority getPriority() const;
@@ -24,6 +26,7 @@ namespace qtcommsengine
     private:
         qint32 m_id;
         QByteArray m_payload;
+        quint32 m_correlationId = 0;
         MessagePriority m_priority;
     };
 

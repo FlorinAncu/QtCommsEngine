@@ -11,7 +11,7 @@ namespace qtcommsengine
 
     namespace
     {
-        constexpr int headerSize = 12;
+        constexpr int headerSize = 16;
         constexpr int crcSize = 4;
         constexpr quint32 maximumPayloadSize = 16U * 1024U * 1024U;
 
@@ -29,25 +29,50 @@ namespace qtcommsengine
         , m_host(host)
         , m_port(port)
         , m_server(new QTcpServer(this))
+        , m_ipv4Server(new QTcpServer(this))
         , m_client(nullptr)
     {
         connect(m_server, &QTcpServer::newConnection,
                 this, &TcpServer::acceptPendingConnection);
+        connect(m_ipv4Server, &QTcpServer::newConnection,
+                this, &TcpServer::acceptPendingConnection);
+    }
+
+    void TcpServer::setHost(const QString &host)
+    {
+        m_host = host;
+    }
+    
+    void TcpServer::setPort(quint16 port)
+    {
+        m_port = port;
     }
 
     bool TcpServer::listen()
     {
+        const bool wildcard = m_host.isEmpty()
+            || m_host == QStringLiteral("*")
+            || m_host == QStringLiteral("0.0.0.0");
+        if (wildcard)
+        {
+            if (m_server->isListening() || m_ipv4Server->isListening())
+            {
+                return true;
+            }
+
+            const bool ipv6Listening = m_server->listen(QHostAddress::AnyIPv6, m_port);
+            const quint16 ipv4Port = ipv6Listening ? m_server->serverPort() : m_port;
+            const bool ipv4Listening = m_ipv4Server->listen(QHostAddress::Any, ipv4Port);
+            return ipv6Listening || ipv4Listening;
+        }
+
         if (m_server->isListening())
         {
             return true;
         }
 
         QHostAddress address;
-        if (m_host.isEmpty() || m_host == QStringLiteral("*") || m_host == QStringLiteral("0.0.0.0"))
-        {
-            address = QHostAddress::Any;
-        }
-        else if (!address.setAddress(m_host))
+        if (!address.setAddress(m_host))
         {
             emit protocolError(QStringLiteral("Invalid listen address: %1").arg(m_host));
             return false;
@@ -67,11 +92,12 @@ namespace qtcommsengine
 
         m_receiveBuffer.clear();
         m_server->close();
+        m_ipv4Server->close();
     }
 
     bool TcpServer::isListening() const
     {
-        return m_server->isListening();
+        return m_server->isListening() || m_ipv4Server->isListening();
     }
 
     bool TcpServer::hasClient() const
@@ -94,27 +120,33 @@ namespace qtcommsengine
 
     void TcpServer::acceptPendingConnection()
     {
-        while (m_server->hasPendingConnections())
+        const auto acceptPendingFrom = [this](QTcpServer *server)
         {
-            QTcpSocket *pendingClient = m_server->nextPendingConnection();
-
-            if (hasClient())
+            while (server->hasPendingConnections())
             {
-                pendingClient->disconnectFromHost();
-                pendingClient->deleteLater();
-                continue;
+                QTcpSocket *pendingClient = server->nextPendingConnection();
+
+                if (hasClient())
+                {
+                    pendingClient->disconnectFromHost();
+                    pendingClient->deleteLater();
+                    continue;
+                }
+
+                m_client = pendingClient;
+                m_receiveBuffer.clear();
+
+                connect(m_client, &QTcpSocket::readyRead,
+                        this, &TcpServer::readClientData);
+                connect(m_client, &QTcpSocket::disconnected,
+                        this, &TcpServer::handleClientDisconnected);
+
+                emit clientConnected();
             }
+        };
 
-            m_client = pendingClient;
-            m_receiveBuffer.clear();
-
-            connect(m_client, &QTcpSocket::readyRead,
-                    this, &TcpServer::readClientData);
-            connect(m_client, &QTcpSocket::disconnected,
-                    this, &TcpServer::handleClientDisconnected);
-
-            emit clientConnected();
-        }
+        acceptPendingFrom(m_server);
+        acceptPendingFrom(m_ipv4Server);
     }
 
     void TcpServer::readClientData()
@@ -128,7 +160,7 @@ namespace qtcommsengine
 
         while (m_receiveBuffer.size() >= headerSize)
         {
-            const quint32 payloadSize = readUInt32(m_receiveBuffer, 8);
+            const quint32 payloadSize = readUInt32(m_receiveBuffer, 12);
             if (payloadSize > maximumPayloadSize)
             {
                 emit protocolError(QStringLiteral("Incoming payload exceeds the size limit"));

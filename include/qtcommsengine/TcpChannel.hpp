@@ -21,7 +21,9 @@ namespace qtcommsengine
 
         bool open() override;
         void close() override;
-
+        
+        void setHost(const QString& host);
+        void setPort(quint16 port);
         void setTimeout(int milliseconds) override;
 
         bool send(const QByteArray &data) override;

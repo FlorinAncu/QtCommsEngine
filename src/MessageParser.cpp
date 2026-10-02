@@ -1,4 +1,5 @@
 #include "qtcommsengine/MessageParser.hpp"
+#include "qtcommsengine/BinaryProtocolSerializer.hpp"
 
 namespace qtcommsengine
 {
@@ -15,18 +16,9 @@ namespace qtcommsengine
 
     Message MessageParser::parse(const QByteArray &rawData, bool &ok) const
     {
-        ok = false;
-
-        if (rawData.isEmpty())
-        {
-            return Message();
-        }
-
-        qint32 id = static_cast<qint32>(static_cast<quint8>(rawData.at(0)));
-        QByteArray payload = rawData.mid(1);
-
-        ok = true;
-        return Message(id, payload);
+        const Message message = BinaryProtocolSerializer::deserialize(rawData);
+        ok = message.getId() != 0;
+        return message;
     }
 
 }

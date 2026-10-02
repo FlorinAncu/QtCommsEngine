@@ -25,6 +25,8 @@ namespace qtcommsengine
         bool isListening() const;
         bool hasClient() const;
         bool send(const Message &message);
+        void setHost(const QString &host);
+        void setPort(quint16 port);
 
     signals:
         void messageReceived(const qtcommsengine::Message &message);
@@ -41,6 +43,7 @@ namespace qtcommsengine
         QString m_host;
         quint16 m_port;
         QTcpServer *m_server;
+        QTcpServer *m_ipv4Server;
         QTcpSocket *m_client;
         QByteArray m_receiveBuffer;
     };

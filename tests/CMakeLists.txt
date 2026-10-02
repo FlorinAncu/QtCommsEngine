@@ -15,6 +15,7 @@ add_executable(QtCommsEngineTests
     ProtocolValidatorTests.cpp
     TrySendOnceTests.cpp
     ReconnectionTests.cpp
+    TcpServerTests.cpp
 )
 
 target_link_libraries(QtCommsEngineTests PRIVATE QtCommsEngine Catch2::Catch2)

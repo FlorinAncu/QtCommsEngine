@@ -1,4 +1,5 @@
 #include "qtcommsengine/MessageBuilder.hpp"
+#include "qtcommsengine/BinaryProtocolSerializer.hpp"
 
 namespace qtcommsengine
 {
@@ -35,10 +36,7 @@ namespace qtcommsengine
 
     QByteArray MessageBuilder::build(const Message &msg) const
     {
-        QByteArray frame;
-        frame.append(static_cast<char>(msg.getId()));
-        frame.append(msg.getPayload());
-        return frame;
+        return BinaryProtocolSerializer::serialize(msg);
     }
 
 }

@@ -6,10 +6,10 @@
 class ConfigLoader
 {
 public:
-    // Încarcă config.json din folderul executabilului
+    // Load config.json from the executable's directory
     static ConnectionConfig load();
 
-    // Încarcă un fișier specific
+    // Load a specific file
     static ConnectionConfig load(const QString &filePath);
 
 private:

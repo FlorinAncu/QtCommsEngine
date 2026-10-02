@@ -26,6 +26,16 @@ namespace qtcommsengine
         return m_payload;
     }
 
+    quint32 Message::getCorrelationId() const
+    {
+        return m_correlationId;
+    }
+
+    void Message::setCorrelationId(quint32 correlationId)
+    {
+        m_correlationId = correlationId;
+    }
+
     void Message::setPriority(MessagePriority priority)
     {
         m_priority = priority;

@@ -61,14 +61,16 @@ TEST_CASE("CommClient fails while disconnected but succeeds after auto-reconnect
     REQUIRE(client.isConnected());
 
     // Disconnect
+    channel.setOpenShouldFail(true);
     channel.forceDisconnect();
     REQUIRE(!client.isConnected());
 
-    // Before reconnect → should fail
+    // The worker cannot reconnect while opening is disabled.
     REQUIRE(client.sendAndHandle(MessageBuilder::makePing("x")) == ErrorCode::ChannelError);
 
+    channel.setOpenShouldFail(false);
     // Wait for auto-reconnect
-    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    std::this_thread::sleep_for(std::chrono::milliseconds(900));
     REQUIRE(client.isConnected());
 
     // After reconnect → should succeed

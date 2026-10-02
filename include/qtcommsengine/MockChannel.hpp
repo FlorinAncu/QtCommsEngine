@@ -28,7 +28,7 @@ namespace qtcommsengine
         bool isConnected() const override;
 
         // When true, open() will fail — used to simulate connection errors in tests.
-        void setOpenShouldFail(bool shouldFail) { m_openShouldFail = shouldFail; }
+        void setOpenShouldFail(bool shouldFail);
 
     private:
         QByteArray m_responseData;
