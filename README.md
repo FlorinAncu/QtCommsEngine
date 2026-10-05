@@ -34,7 +34,7 @@ applications that require message-based communication over custom or standard tr
 ### Channels
 - `CommChannel` – abstract communication interface  
 - `TcpChannel` – TCP/IP transport using `QTcpSocket`  
-- `TcpServer` – single-client TCP server with framed message reception  
+- `TcpServer` – multi-client TCP server with framed message reception and per-client routing
 - `MockChannel` – deterministic in-memory transport for testing  
 
 `TcpChannel` accepts IPv4 and IPv6 addresses (as well as hostnames). `TcpServer`
@@ -42,6 +42,37 @@ accepts numeric IPv4 or IPv6 bind addresses. Its wildcard values (`""`, `"*"`,
 and `"0.0.0.0"`) listen on IPv6-any and IPv4-any on the same port. If the
 operating system's IPv6 listener already accepts IPv4 clients, the separate
 IPv4 listener may not be needed; otherwise it provides IPv4 access directly.
+
+`TcpServer` assigns each accepted connection a `ClientId`. The `clientConnected()` and
+`clientDisconnected()` signals identify the affected connection, and `messageReceived()`
+provides both the sender ID and message. Use `sendToClient()` or `broadcast()` to route
+outgoing messages. `clientIds()` returns connected IDs in unspecified order.
+`setMaximumClients()` limits active connections; `0` means unlimited, and additional
+connections are closed when a positive limit has been reached. Lowering the limit does
+not disconnect existing clients. Negative limits are rejected. `hasClients()` checks
+whether at least one connection is active. `send()` succeeds only when exactly one
+client is connected; `sendToClient()` fails for an unknown or disconnected ID, and
+`broadcast()` fails if there are no clients or any write fails. Use `sendToClient()` or
+`broadcast()` when multiple clients are allowed.
+
+This API update is source-incompatible with the former single-client API:
+`hasClient()` is now `hasClients()`, and the connection and message signals now include
+a `ClientId`. Update existing signal handlers to accept the ID (or use a lambda that
+ignores it). Applications configured with a maximum of one client can continue to use
+`send()` without changing its routing behavior.
+
+```cpp
+connect(&server, &TcpServer::messageReceived, this,
+        [&server](TcpServer::ClientId clientId, const Message &request)
+        {
+            Message reply(/* response ID */, request.getPayload());
+            reply.setCorrelationId(request.getCorrelationId());
+            server.sendToClient(clientId, reply);
+        });
+```
+
+Client IDs identify connections only for the lifetime of that server instance; obtain
+the ID from the connection or message signals rather than relying on their numeric value.
 
 ### Serialization
 Protocol version 2 binary framing format (32-bit fields are little-endian):

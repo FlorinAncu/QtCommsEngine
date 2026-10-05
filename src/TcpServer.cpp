@@ -30,7 +30,6 @@ namespace qtcommsengine
         , m_port(port)
         , m_server(new QTcpServer(this))
         , m_ipv4Server(new QTcpServer(this))
-        , m_client(nullptr)
     {
         connect(m_server, &QTcpServer::newConnection,
                 this, &TcpServer::acceptPendingConnection);
@@ -83,22 +82,21 @@ namespace qtcommsengine
 
     void TcpServer::close()
     {
-        QTcpSocket *client = m_client;
-        m_client = nullptr;
-        if (client)
+        const auto sessions = m_clients;
+        m_clients.clear();
+        m_clientIds.clear();
+
+        for (auto it = sessions.cbegin(); it != sessions.cend(); ++it)
         {
+            QTcpSocket *client = it->socket;
             QObject::disconnect(client, nullptr, this, nullptr);
             client->abort();
             client->deleteLater();
+            emit clientDisconnected(it.key());
         }
 
-        m_receiveBuffer.clear();
         m_server->close();
         m_ipv4Server->close();
-        if (client)
-        {
-            emit clientDisconnected();
-        }
     }
 
     bool TcpServer::isListening() const
@@ -106,21 +104,87 @@ namespace qtcommsengine
         return m_server->isListening() || m_ipv4Server->isListening();
     }
 
-    bool TcpServer::hasClient() const
+    bool TcpServer::hasClients() const
     {
-        return m_client && m_client->state() == QAbstractSocket::ConnectedState;
+        return !m_clients.isEmpty();
+    }
+
+    int TcpServer::clientCount() const
+    {
+        return m_clients.size();
+    }
+
+    QList<TcpServer::ClientId> TcpServer::clientIds() const
+    {
+        return m_clients.keys();
+    }
+
+    int TcpServer::maximumClients() const
+    {
+        return m_maximumClients;
+    }
+
+    bool TcpServer::setMaximumClients(int maximumClients)
+    {
+        if (maximumClients < 0)
+        {
+            return false;
+        }
+
+        m_maximumClients = maximumClients;
+        return true;
     }
 
     bool TcpServer::send(const Message &message)
     {
-        if (!hasClient())
+        if (m_clients.size() != 1)
+        {
+            return false;
+        }
+
+        return writeToClient(m_clients.cbegin()->socket, message);
+    }
+
+    bool TcpServer::sendToClient(ClientId clientId, const Message &message)
+    {
+        const auto it = m_clients.constFind(clientId);
+        if (it == m_clients.cend())
+        {
+            return false;
+        }
+
+        return writeToClient(it->socket, message);
+    }
+
+    bool TcpServer::broadcast(const Message &message)
+    {
+        if (m_clients.isEmpty())
+        {
+            return false;
+        }
+
+        bool allSent = true;
+        for (auto it = m_clients.cbegin(); it != m_clients.cend(); ++it)
+        {
+            if (!writeToClient(it->socket, message))
+            {
+                allSent = false;
+            }
+        }
+
+        return allSent;
+    }
+
+    bool TcpServer::writeToClient(QTcpSocket *client, const Message &message)
+    {
+        if (!client || client->state() != QAbstractSocket::ConnectedState)
         {
             return false;
         }
 
         const QByteArray frame = BinaryProtocolSerializer::serialize(message);
-        const qint64 bytesQueued = m_client->write(frame);
-        m_client->flush();
+        const qint64 bytesQueued = client->write(frame);
+        client->flush();
         return bytesQueued == frame.size();
     }
 
@@ -132,22 +196,28 @@ namespace qtcommsengine
             {
                 QTcpSocket *pendingClient = server->nextPendingConnection();
 
-                if (hasClient())
+                if (m_maximumClients > 0 && m_clients.size() >= m_maximumClients)
                 {
-                    pendingClient->disconnectFromHost();
+                    pendingClient->abort();
                     pendingClient->deleteLater();
                     continue;
                 }
 
-                m_client = pendingClient;
-                m_receiveBuffer.clear();
+                do
+                {
+                    ++m_nextClientId;
+                } while (m_nextClientId == 0 || m_clients.contains(m_nextClientId));
 
-                connect(m_client, &QTcpSocket::readyRead,
-                        this, &TcpServer::readClientData);
-                connect(m_client, &QTcpSocket::disconnected,
-                        this, &TcpServer::handleClientDisconnected);
+                const ClientId clientId = m_nextClientId;
+                m_clients.insert(clientId, ClientSession{pendingClient, {}});
+                m_clientIds.insert(pendingClient, clientId);
 
-                emit clientConnected();
+                connect(pendingClient, &QTcpSocket::readyRead, this,
+                        [this, pendingClient]() { readClientData(pendingClient); });
+                connect(pendingClient, &QTcpSocket::disconnected, this,
+                        [this, pendingClient]() { handleClientDisconnected(pendingClient); });
+
+                emit clientConnected(clientId);
             }
         };
 
@@ -155,34 +225,45 @@ namespace qtcommsengine
         acceptPendingFrom(m_ipv4Server);
     }
 
-    void TcpServer::readClientData()
+    void TcpServer::readClientData(QTcpSocket *client)
     {
-        if (!m_client)
+        const auto idIt = m_clientIds.constFind(client);
+        if (idIt == m_clientIds.cend())
         {
             return;
         }
+        const ClientId clientId = idIt.value();
 
-        m_receiveBuffer.append(m_client->readAll());
+        m_clients[clientId].receiveBuffer.append(client->readAll());
 
-        while (m_receiveBuffer.size() >= headerSize)
+        while (m_clients.contains(clientId))
         {
-            const quint32 payloadSize = readUInt32(m_receiveBuffer, 12);
+            QByteArray &receiveBuffer = m_clients[clientId].receiveBuffer;
+            if (receiveBuffer.size() < headerSize)
+            {
+                return;
+            }
+
+            const quint32 payloadSize = readUInt32(receiveBuffer, 12);
             if (payloadSize > maximumPayloadSize)
             {
                 emit protocolError(QStringLiteral("Incoming payload exceeds the size limit"));
-                m_receiveBuffer.clear();
-                m_client->disconnectFromHost();
+                if (m_clients.contains(clientId))
+                {
+                    m_clients[clientId].receiveBuffer.clear();
+                    client->disconnectFromHost();
+                }
                 return;
             }
 
             const qsizetype frameSize = headerSize + static_cast<qsizetype>(payloadSize) + crcSize;
-            if (m_receiveBuffer.size() < frameSize)
+            if (receiveBuffer.size() < frameSize)
             {
                 return;
             }
 
-            const QByteArray frame = m_receiveBuffer.left(frameSize);
-            m_receiveBuffer.remove(0, frameSize);
+            const QByteArray frame = receiveBuffer.left(frameSize);
+            receiveBuffer.remove(0, frameSize);
 
             const Message message = BinaryProtocolSerializer::deserialize(frame);
             if (message.getId() == 0)
@@ -191,21 +272,23 @@ namespace qtcommsengine
                 continue;
             }
 
-            emit messageReceived(message);
+            emit messageReceived(clientId, message);
         }
     }
 
-    void TcpServer::handleClientDisconnected()
+    void TcpServer::handleClientDisconnected(QTcpSocket *client)
     {
-        if (!m_client)
+        const auto idIt = m_clientIds.find(client);
+        if (idIt == m_clientIds.end())
         {
             return;
         }
 
-        m_client->deleteLater();
-        m_client = nullptr;
-        m_receiveBuffer.clear();
-        emit clientDisconnected();
+        const ClientId clientId = idIt.value();
+        m_clientIds.erase(idIt);
+        m_clients.remove(clientId);
+        client->deleteLater();
+        emit clientDisconnected(clientId);
     }
 
 }
