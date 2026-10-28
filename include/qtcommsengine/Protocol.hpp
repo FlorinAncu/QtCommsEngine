@@ -2,6 +2,7 @@
 
 namespace qtcommsengine
 {
+    /// Message identifiers defined by the built-in protocol.
     enum class MessageId : int
     {
         Ping = 1,

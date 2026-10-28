@@ -9,15 +9,19 @@
 namespace qtcommsengine
 {
 
-    // Extracts the id and payload of a Message and parses raw bytes back into one.
+    /// Convenience accessors and binary-frame parser for Message values.
     class MessageParser
     {
     public:
         MessageParser() = default;
 
+        /// Converts the message's numeric ID to the corresponding protocol enum.
         static MessageId getId(const Message &msg);
+
+        /// Decodes the message payload as UTF-8 text.
         static QString getPayload(const Message &msg);
 
+        /// Parses exactly one complete frame and sets ok to indicate success.
         Message parse(const QByteArray &rawData, bool &ok) const;
     };
 

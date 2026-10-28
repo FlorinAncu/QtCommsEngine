@@ -5,10 +5,11 @@
 namespace qtcommsengine
 {
 
-    // Logs ErrorCode values produced by the communication layer.
+    /// Writes a human-readable description of an ErrorCode to Logger.
     class ErrorHandler
     {
     public:
+        /// Logs the supplied result code.
         static void handle(ErrorCode code);
     };
 

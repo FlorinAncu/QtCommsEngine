@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(Catch2)
 set(CATCH2_ENABLE_MAIN OFF CACHE BOOL "" FORCE)
 
 add_executable(QtCommsEngineTests
+    ConfigLoaderTests.cpp
     main.cpp
     MessageQueueTests.cpp
     ProtocolValidatorTests.cpp

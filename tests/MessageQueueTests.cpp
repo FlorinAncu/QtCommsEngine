@@ -35,6 +35,22 @@ TEST_CASE("MessageQueue delivers messages in priority order", "[MessageQueue]")
     REQUIRE(out.getId() == 1);
 }
 
+TEST_CASE("MessageQueue preserves insertion order for equal priorities", "[MessageQueue]")
+{
+    MessageQueue queue;
+    queue.push(Message(1, QByteArray()));
+    queue.push(Message(2, QByteArray()));
+    queue.push(Message(3, QByteArray()));
+
+    Message out;
+    REQUIRE(queue.pop(out));
+    REQUIRE(out.getId() == 1);
+    REQUIRE(queue.pop(out));
+    REQUIRE(out.getId() == 2);
+    REQUIRE(queue.pop(out));
+    REQUIRE(out.getId() == 3);
+}
+
 TEST_CASE("MessageQueue::pop returns false after close with no pending messages", "[MessageQueue]")
 {
     MessageQueue queue;

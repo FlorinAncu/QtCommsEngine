@@ -3,6 +3,7 @@
 namespace qtcommsengine
 {
 
+    /// Result codes returned by communication and protocol operations.
     enum class ErrorCode
     {
         Ok = 0,

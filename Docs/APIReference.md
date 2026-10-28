@@ -1,30 +1,80 @@
-=========================================
-APIReference.md
-=========================================
-QtCommsEngine provides a complete Qt‑based communication runtime built on QTcpSocket, QThread, QMutex, QWaitCondition and QByteArray. The library exposes a fully structured API organized into four layers: Transport Layer, Runtime Layer, Protocol Layer and Infrastructure Layer. All public API resides under the namespace qtcommsengine and uses Qt types exclusively.
+# API Reference
 
-Transport Layer
+QtCommsEngine is a C++20 static library built on Qt 6 Core and Network. Public
+headers are under `include/qtcommsengine/`; most public types are in the
+`qtcommsengine` namespace.
 
-CommChannel is the abstract interface for all transport channels. It defines open(), close(), isConnected(), setTimeout(int), send(const QByteArray&) and receive(int). TcpChannel implements real TCP communication using QTcpSocket. It manages connection establishment, disconnection, blocking send and receive operations, and timeout handling. MockChannel is an in‑memory deterministic transport used for testing. It stores the last sent buffer and returns predefined responses without performing any network I/O.
+## Transport
 
-Runtime Layer
+- `CommChannel` defines the transport interface for opening, closing, sending
+  and receiving raw bytes.
+- `TcpChannel` implements that interface with `QTcpSocket`.
+- `MockChannel` provides an in-memory implementation for tests and examples.
+- `TcpServer` accepts multiple clients and exposes per-client routing through
+  `ClientId`, `sendToClient()` and `broadcast()`.
 
-CommManager controls the connection lifecycle. It provides connect(), disconnect(), isConnected(), setTimeout(int), sendMessage(const Message&) and receiveMessage(Message&). CommClient extends CommManager and implements the high‑level communication engine. It provides enqueue(const Message&), sendAndHandle(const Message&), trySendOnce(const Message&), runSender() and reconnectAndResynchronize(). CommClient features automatic reconnection, retry logic, heartbeat, protocol resynchronization and a dedicated sender thread implemented using QThread. It uses MessageQueue to manage prioritized message dispatching.
+Channels are QObject instances. Keep a channel alive for as long as its manager
+uses it. `CommClient` moves its channel to a dedicated worker thread while it is
+running and returns it to the creating thread when stopped; the channel must
+therefore have no QObject parent.
 
-Message Model
+## Runtime
 
-Message represents a binary protocol message. It contains an integer id, a QByteArray payload and a MessagePriority value. MessageBuilder constructs well‑known protocol messages such as Ping, Heartbeat, GetStatus, SetParameter and GetProtocolVersion. MessageParser extracts id and payload from raw binary buffers. MessageQueue is a thread‑safe priority queue implemented using QList, QMutex and QWaitCondition. It provides push(const Message&), pop(Message&) and close().
+`CommManager` provides blocking connect, disconnect, send and receive operations.
+It does not own its channel, and direct use must follow the channel's thread
+affinity.
 
-Protocol Layer
+`CommClient` serializes channel operations on its worker thread. Its synchronous
+`connect()`, `disconnect()` and `sendAndHandle()` methods wait for work on that
+thread. `enqueue()` schedules a request on the priority queue, while
+`enqueueResponse()` queues a response to an unsolicited message.
+`messageReceived` is emitted for incoming messages. On connection loss the
+client attempts reconnection using `RetryPolicy`; it does not automatically
+replay a failed request, generate periodic heartbeats or negotiate protocol
+versions. Do not call the inherited low-level `sendMessage()` or
+`receiveMessage()` methods while the client is running: they execute on the
+calling thread rather than submitting work to the client thread.
 
-ProtocolVersion defines the protocol version constant. ProtocolCompatibility checks whether two versions are compatible or whether fallback is possible. ProtocolValidator validates messages against protocol rules. BinaryProtocolSerializer serializes messages into binary frames and deserializes them back into Message objects. Crc32 computes CRC32 checksums for integrity validation.
+## Messages and framing
 
-Infrastructure Layer
+`Message` stores a numeric ID, binary payload, correlation ID and priority.
+`MessageBuilder` creates common request types, and `MessageParser` provides
+convenience decoding for one complete frame.
 
-ErrorCode enumerates common error identifiers. ErrorHandler logs error codes. ResponseHandler interprets server responses and maps them to ErrorCode. Logger provides info(), warn() and error() logging functions. RetryPolicy defines retry configuration fields: maxRetries, retryDelayMs and reconnectDelayMs.
+`BinaryProtocolSerializer` encodes one complete frame:
 
-This API reference describes all public components required to build applications using QtCommsEngine.
+```text
+[version:4][id:4][correlationId:4][payloadSize:4][payload][crc32:4]
+```
 
-=========================================
-End of APIReference.md
-=========================================
+The 32-bit fields are little-endian. `ProtocolVersion.hpp` defines
+`PROTOCOL_VERSION`; `Crc32` computes the frame checksum. Deserialization returns
+a default `Message` when the frame is malformed, has a different protocol
+version, or fails CRC validation.
+
+`ProtocolValidator` is an explicit utility; serialization and `CommClient` do
+not invoke it automatically. `ProtocolCompatibility` currently accepts only
+equal versions and does not support fallback. `MessageQueue` orders messages by
+priority and retains insertion order among equal priorities.
+
+## Utilities
+
+`ErrorCode`, `ResponseHandler`, `ErrorHandler`, `Logger` and `RetryPolicy`
+provide communication results, response mapping, logging and reconnect timing.
+`ConfigLoader` and `ConnectionConfig` are currently declared in the global
+namespace for source compatibility; a failed or unreadable JSON file produces
+an empty configuration (empty address and zero numeric fields). Prefer the
+`bool load(path, config, errorMessage)` overload to handle failures directly;
+the legacy overload logs a warning and returns the empty configuration.
+
+## CMake integration
+
+Use the build-tree alias when embedding the project:
+
+```cmake
+add_subdirectory(QtCommsEngine)
+target_link_libraries(YourApp PRIVATE QtCommsEngine::QtCommsEngine)
+```
+
+The library target propagates its Qt Core and Network dependencies and public
+include directory.

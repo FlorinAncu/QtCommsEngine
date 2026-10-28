@@ -28,8 +28,10 @@ applications that require message-based communication over custom or standard tr
     `disconnect()`, and `sendAndHandle()` calls
 - `enqueue()` for asynchronous requests and `messageReceived` for incoming messages
 - `enqueueResponse()` for replies to server-initiated requests
-- Automatic reconnection using `RetryPolicy`; GetProtocolVersion and Heartbeat
-    are available as requests, not an automatic handshake
+- Automatic reconnection attempts using `RetryPolicy`; requests are not replayed
+    automatically after a failed send
+- GetProtocolVersion and Heartbeat are available as requests; periodic heartbeat
+    generation and protocol negotiation are left to the application
 
 ### Channels
 - `CommChannel` – abstract communication interface  
@@ -118,9 +120,9 @@ QtCommsEngine/
 ## Requirements
 
 - CMake ≥ 3.16  
-- Qt6 (Core, Network, Test)  
+- Qt6 (Core, Network)
 - C++20 compiler  
-- Catch2 (fetched via FetchContent when tests are enabled)  
+- Catch2 (fetched via FetchContent when tests are enabled; Qt Test is not required)
 
 ---
 
@@ -172,7 +174,7 @@ stopping it does not drain queued messages.
 set(QTCOMMSENGINE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(QTCOMMSENGINE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(QtCommsEngine)
-target_link_libraries(YourApp PRIVATE QtCommsEngine Qt6::Core Qt6::Network)
+target_link_libraries(YourApp PRIVATE QtCommsEngine::QtCommsEngine)
 ```
 
 Include public headers from `<qtcommsengine/...>`.

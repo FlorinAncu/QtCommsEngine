@@ -40,6 +40,12 @@ namespace qtcommsengine
         m_running = false;
         m_queue.close();
         m_senderThread.quit();
+
+        if (QThread::currentThread() == &m_senderThread)
+        {
+            return;
+        }
+
         m_senderThread.wait();
     }
 

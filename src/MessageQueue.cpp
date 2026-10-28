@@ -22,12 +22,12 @@ namespace qtcommsengine
 
         m_queue.append(msg);
 
-        std::sort(m_queue.begin(), m_queue.end(),
-                  [](const Message &a, const Message &b)
-                  {
-                      return static_cast<int>(a.getPriority()) >
-                             static_cast<int>(b.getPriority());
-                  });
+        std::stable_sort(m_queue.begin(), m_queue.end(),
+                         [](const Message &a, const Message &b)
+                         {
+                             return static_cast<int>(a.getPriority()) >
+                                    static_cast<int>(b.getPriority());
+                         });
 
         m_condition.wakeOne();
     }

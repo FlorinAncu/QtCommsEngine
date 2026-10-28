@@ -5,13 +5,7 @@ project(QtCommsEngine LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Qt6 location (important when using vcpkg toolchain)
-set(Qt6_DIR "C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6")
-
-find_package(Qt6 REQUIRED COMPONENTS Core Network Test)
-
-# Include directories
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+find_package(Qt6 REQUIRED COMPONENTS Core Network)
 
 # Source files
 set(QTCOMMSENGINE_HEADERS
@@ -67,16 +61,18 @@ add_library(QtCommsEngine STATIC
     ${QTCOMMSENGINE_SOURCES}
 )
 
+add_library(QtCommsEngine::QtCommsEngine ALIAS QtCommsEngine)
+
 set_target_properties(QtCommsEngine PROPERTIES AUTOMOC ON)
 
 target_link_libraries(QtCommsEngine
-    Qt6::Core
-    Qt6::Network
+    PUBLIC
+        Qt6::Core
+        Qt6::Network
 )
 
 target_include_directories(QtCommsEngine PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/qtcommsengine
 )
 
 # Warnings

@@ -6,10 +6,11 @@
 namespace qtcommsengine
 {
 
-    // Computes CRC32 checksums used to detect corrupted frames on the wire.
+    /// Computes the CRC-32/ISO-HDLC checksum used by the wire protocol.
     class Crc32
     {
     public:
+        /// Returns the checksum of data.
         static quint32 compute(const QByteArray &data);
     };
 

@@ -23,16 +23,22 @@ namespace qtcommsengine
     public:
         using ClientId = quint64;
 
+        /// Creates a server bound to a numeric IP address or wildcard address.
         TcpServer(const QString &host, quint16 port, QObject *parent = nullptr);
 
+        /// Starts listening on the configured address and port.
         bool listen();
+
+        /// Stops listening, disconnects clients and emits clientDisconnected for each.
         void close();
+
+        /// Returns whether any server socket is listening.
         bool isListening() const;
 
         /// Returns whether at least one client is connected.
         bool hasClients() const;
 
-        /// Returns the number of currently connected clients.
+        /// Returns the currently connected client count.
         int clientCount() const;
 
         /// Returns the IDs of connected clients; the order is unspecified.
@@ -53,7 +59,11 @@ namespace qtcommsengine
 
         /// Sends to every connected client and returns true only if every write succeeds.
         bool broadcast(const Message &message);
+
+        /// Changes the bind address for the next listen operation.
         void setHost(const QString &host);
+
+        /// Changes the port for the next listen operation.
         void setPort(quint16 port);
 
     signals:
@@ -67,6 +77,7 @@ namespace qtcommsengine
         /// Emitted when a client disconnects or is removed by close().
         void clientDisconnected(qtcommsengine::TcpServer::ClientId clientId);
 
+        /// Emitted when an invalid frame or listen address is encountered.
         void protocolError(const QString &message);
 
     private slots:

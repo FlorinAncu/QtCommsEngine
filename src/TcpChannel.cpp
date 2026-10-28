@@ -8,7 +8,6 @@ namespace qtcommsengine
         , m_host(host)
         , m_port(port)
         , m_socket(new QTcpSocket(this))
-        , m_connected(false)
         , m_timeoutMs(200)
     {
     }
@@ -34,11 +33,9 @@ namespace qtcommsengine
 
         if (!m_socket->waitForConnected(m_timeoutMs))
         {
-            m_connected = false;
             return false;
         }
 
-        m_connected = true;
         return true;
     }
 
@@ -49,7 +46,6 @@ namespace qtcommsengine
             m_socket->close();
         }
 
-        m_connected = false;
     }
 
     void TcpChannel::setTimeout(int milliseconds)
