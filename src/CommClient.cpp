@@ -56,8 +56,14 @@ namespace qtcommsengine
 
     void CommClient::enqueueResponse(const Message &msg)
     {
-        QMutexLocker locker(&m_responseMutex);
-        m_pendingResponses.enqueue(msg);
+        QMutexLocker locker(&m_unacknowledgedMutex);
+        m_unacknowledgedMessages.enqueue(msg);
+    }
+
+    void CommClient::post(const Message &msg)
+    {
+        QMutexLocker locker(&m_unacknowledgedMutex);
+        m_unacknowledgedMessages.enqueue(msg);
     }
 
     ErrorCode CommClient::invokeOnWorker(PendingCall::Kind kind, const Message &msg)
@@ -194,21 +200,24 @@ namespace qtcommsengine
                 continue;
             }
 
-            Message response;
-            bool hasResponse = false;
+            Message unacknowledged;
+            bool hasUnacknowledged = false;
             {
-                QMutexLocker locker(&m_responseMutex);
-                if (!m_pendingResponses.isEmpty())
+                QMutexLocker locker(&m_unacknowledgedMutex);
+                if (!m_unacknowledgedMessages.isEmpty())
                 {
-                    response = m_pendingResponses.dequeue();
-                    hasResponse = true;
+                    unacknowledged = m_unacknowledgedMessages.dequeue();
+                    hasUnacknowledged = true;
                 }
             }
 
-            if (hasResponse)
+            if (hasUnacknowledged)
             {
                 QMutexLocker locker(&m_ioMutex);
-                sendMessage(response);
+                if (isConnected())
+                {
+                    sendMessage(unacknowledged);
+                }
                 continue;
             }
 

@@ -28,6 +28,8 @@ applications that require message-based communication over custom or standard tr
     `disconnect()`, and `sendAndHandle()` calls
 - `enqueue()` for asynchronous requests and `messageReceived` for incoming messages
 - `enqueueResponse()` for replies to server-initiated requests
+- `post()` for one-way messages: sent without waiting for a response, so the absence
+    of a reply never causes a timeout or a reconnect; dropped while disconnected
 - Automatic reconnection attempts using `RetryPolicy`; requests are not replayed
     automatically after a failed send
 - GetProtocolVersion and Heartbeat are available as requests; periodic heartbeat
@@ -55,7 +57,9 @@ not disconnect existing clients. Negative limits are rejected. `hasClients()` ch
 whether at least one connection is active. `send()` succeeds only when exactly one
 client is connected; `sendToClient()` fails for an unknown or disconnected ID, and
 `broadcast()` fails if there are no clients or any write fails. Use `sendToClient()` or
-`broadcast()` when multiple clients are allowed.
+`broadcast()` when multiple clients are allowed. `disconnectClient()` closes a single
+connection (for example, one that stopped sending heartbeats) and emits
+`clientDisconnected()` for it.
 
 This API update is source-incompatible with the former single-client API:
 `hasClient()` is now `hasClients()`, and the connection and message signals now include

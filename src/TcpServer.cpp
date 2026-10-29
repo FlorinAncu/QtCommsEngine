@@ -99,6 +99,24 @@ namespace qtcommsengine
         m_ipv4Server->close();
     }
 
+    bool TcpServer::disconnectClient(ClientId clientId)
+    {
+        const auto it = m_clients.constFind(clientId);
+        if (it == m_clients.cend())
+        {
+            return false;
+        }
+
+        QTcpSocket *client = it->socket;
+        m_clients.remove(clientId);
+        m_clientIds.remove(client);
+        QObject::disconnect(client, nullptr, this, nullptr);
+        client->abort();
+        client->deleteLater();
+        emit clientDisconnected(clientId);
+        return true;
+    }
+
     bool TcpServer::isListening() const
     {
         return m_server->isListening() || m_ipv4Server->isListening();

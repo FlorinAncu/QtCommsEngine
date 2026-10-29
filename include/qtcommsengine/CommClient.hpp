@@ -60,6 +60,12 @@ namespace qtcommsengine
         /// Queues a response to an unsolicited message for transmission.
         void enqueueResponse(const Message &msg);
 
+        /// Queues a one-way message: it is sent without waiting for a response,
+        /// so a missing reply never causes a timeout or a reconnect.
+        /// One-way messages are sent before queued requests, in posting order.
+        /// A message posted while the channel is disconnected is dropped.
+        void post(const Message &msg);
+
     signals:
         /// Emitted for each received message, including unsolicited messages.
         void messageReceived(const Message& msg);
@@ -86,8 +92,9 @@ namespace qtcommsengine
         QMutex m_ioMutex;
         QMutex m_callsMutex;
         QQueue<QSharedPointer<PendingCall>> m_pendingCalls;
-        QMutex m_responseMutex;
-        QQueue<Message> m_pendingResponses;
+        // Responses and one-way messages: sent as-is, never awaited.
+        QMutex m_unacknowledgedMutex;
+        QQueue<Message> m_unacknowledgedMessages;
         QThread m_senderThread;
         QThread *m_ownerThread;
         quint32 m_nextCorrelationId = 0;

@@ -32,6 +32,10 @@ namespace qtcommsengine
         /// Stops listening, disconnects clients and emits clientDisconnected for each.
         void close();
 
+        /// Disconnects one client and emits clientDisconnected for it.
+        /// Returns false when no client with this ID is connected.
+        bool disconnectClient(ClientId clientId);
+
         /// Returns whether any server socket is listening.
         bool isListening() const;
 

@@ -309,3 +309,51 @@ TEST_CASE("TcpServer close disconnects every client and reports each client ID",
         return secondClient.state() == QAbstractSocket::UnconnectedState;
     }));
 }
+
+TEST_CASE("TcpServer disconnects a single client on request", "[TcpServer][disconnect-client]")
+{
+    const quint16 port = findAvailablePort();
+    REQUIRE(port != 0);
+
+    qtcommsengine::TcpServer server(QStringLiteral("127.0.0.1"), port);
+    REQUIRE(server.listen());
+
+    QList<qtcommsengine::TcpServer::ClientId> disconnectedIds;
+    QObject::connect(&server, &qtcommsengine::TcpServer::clientDisconnected,
+                     &server, [&disconnectedIds](qtcommsengine::TcpServer::ClientId clientId)
+                     {
+                         disconnectedIds.append(clientId);
+                     });
+
+    QTcpSocket keptClient;
+    keptClient.connectToHost(QHostAddress::LocalHost, port);
+    REQUIRE(keptClient.waitForConnected(1000));
+    REQUIRE(waitUntil([&server]() { return server.clientCount() == 1; }));
+    const qtcommsengine::TcpServer::ClientId keptId = server.clientIds().first();
+
+    QTcpSocket droppedClient;
+    droppedClient.connectToHost(QHostAddress::LocalHost, port);
+    REQUIRE(droppedClient.waitForConnected(1000));
+    REQUIRE(waitUntil([&server]() { return server.clientCount() == 2; }));
+    qtcommsengine::TcpServer::ClientId droppedId = 0;
+    for (const auto clientId : server.clientIds())
+    {
+        if (clientId != keptId)
+        {
+            droppedId = clientId;
+        }
+    }
+
+    REQUIRE(server.disconnectClient(droppedId));
+    REQUIRE(disconnectedIds == QList<qtcommsengine::TcpServer::ClientId>{droppedId});
+    REQUIRE(server.clientIds() == QList<qtcommsengine::TcpServer::ClientId>{keptId});
+    REQUIRE(waitUntil([&droppedClient]() {
+        return droppedClient.state() == QAbstractSocket::UnconnectedState;
+    }));
+    REQUIRE_FALSE(server.disconnectClient(droppedId));
+    REQUIRE(disconnectedIds.size() == 1);
+
+    REQUIRE(server.sendToClient(keptId, qtcommsengine::Message(3, QByteArray("still-here"))));
+    REQUIRE(waitUntil([&keptClient]() { return keptClient.bytesAvailable() > 0; }));
+    REQUIRE(keptClient.state() == QAbstractSocket::ConnectedState);
+}
